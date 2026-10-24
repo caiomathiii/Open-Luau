@@ -1,0 +1,83 @@
+
+-- Open Luau - Object Interaction System
+
+-- =====================================================
+-- DEVELOPMENT LOCK
+-- Change to false to enable the interaction system.
+-- =====================================================
+local DEVELOPMENT_LOCK = true
+
+if DEVELOPMENT_LOCK then
+	warn("[Open Luau] Object Interaction System is locked.")
+	return
+end
+
+-- =====================================================
+-- CONFIGURATION
+-- =====================================================
+
+local ACTION_TEXT = "Interact"
+local OBJECT_TEXT = "Object"
+
+-- Set to 0 for a single press.
+-- Set above 0 to require holding the interaction button.
+local HOLD_DURATION = 0
+
+local MAX_ACTIVATION_DISTANCE = 10
+local REQUIRES_LINE_OF_SIGHT = true
+
+local INTERACTION_KEY = Enum.KeyCode.E
+
+-- =====================================================
+-- SYSTEM SETUP
+-- =====================================================
+
+local object = script.Parent
+local interactionPart
+
+if object:IsA("BasePart") then
+	interactionPart = object
+elseif object:IsA("Model") then
+	interactionPart = object.PrimaryPart
+		or object:FindFirstChildWhichIsA("BasePart", true)
+end
+
+if not interactionPart then
+	warn("[Open Luau] No valid BasePart found for interaction.")
+	return
+end
+
+local prompt = interactionPart:FindFirstChild("ObjectInteractionPrompt")
+
+if prompt and not prompt:IsA("ProximityPrompt") then
+	warn("[Open Luau] ObjectInteractionPrompt has an invalid class.")
+	return
+end
+
+if not prompt then
+	prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "ObjectInteractionPrompt"
+	prompt.Parent = interactionPart
+end
+
+prompt.ActionText = ACTION_TEXT
+prompt.ObjectText = OBJECT_TEXT
+prompt.KeyboardKeyCode = INTERACTION_KEY
+prompt.HoldDuration = math.max(0, HOLD_DURATION)
+prompt.MaxActivationDistance = math.max(0, MAX_ACTIVATION_DISTANCE)
+prompt.RequiresLineOfSight = REQUIRES_LINE_OF_SIGHT
+prompt.Enabled = true
+
+-- =====================================================
+-- INTERACTION EVENT
+-- Add the desired object behavior inside this event.
+-- =====================================================
+
+prompt.Triggered:Connect(function(player)
+	print("[Open Luau] " .. player.Name .. " interacted with " .. object.Name)
+
+	-- Add your custom interaction logic here.
+	-- Example: open a door, activate a switch, or collect an item.
+end)
+
+print("[Open Luau] Object Interaction System initialized.")
