@@ -1,0 +1,186 @@
+
+--[[
+    Open Luau - Custom Health System
+    Version: 1.0.0
+
+    Created with ChatGPT assistance.
+
+    PURPOSE:
+    Provides configurable player health and health regeneration.
+
+    IMPORTANT:
+    Review the DEVELOPMENT LOCK before using this script.
+    This lock is a development restriction, NOT a security system.
+]]
+
+local Players = game:GetService("Players")
+
+--==================================================
+-- DEVELOPMENT LOCK - REVIEW THIS SECTION
+--==================================================
+
+local DEVELOPMENT_LOCK = true
+
+-- Change to false after reviewing this script
+-- to enable the health system.
+-- You may also remove this lock if appropriate.
+
+--==================================================
+-- CONFIGURATION - CUSTOMIZE THESE VALUES
+--==================================================
+
+local CONFIG = {
+    -- Enable or disable the custom health system
+    ENABLE_CUSTOM_HEALTH = true,
+
+    -- Maximum health (HP)
+    MAX_HEALTH = 100,
+
+    -- Initial health when the character spawns.
+    -- Set to nil to start at maximum health.
+    STARTING_HEALTH = nil,
+
+    -- Health regeneration settings
+    ENABLE_REGENERATION = true,
+    REGEN_AMOUNT = 5,
+    REGEN_INTERVAL = 2,
+
+    -- Delay after taking damage before regeneration starts
+    REGEN_DELAY = 3,
+}
+
+--==================================================
+-- DEVELOPMENT LOCK CHECK
+--==================================================
+
+if DEVELOPMENT_LOCK then
+    warn("[Open Luau] DEVELOPMENT LOCK IS ACTIVE.")
+    warn("[Open Luau] Review the lock near the top of the script.")
+    warn("[Open Luau] Change DEVELOPMENT_LOCK to false to enable.")
+
+    return
+end
+
+if not CONFIG.ENABLE_CUSTOM_HEALTH then
+    warn("[Open Luau] Custom health system is disabled.")
+    return
+end
+
+--==================================================
+-- CONFIGURATION VALIDATION
+--==================================================
+
+assert(
+    typeof(CONFIG.MAX_HEALTH) == "number"
+        and CONFIG.MAX_HEALTH > 0,
+    "MAX_HEALTH must be a positive number."
+)
+
+assert(
+    CONFIG.STARTING_HEALTH == nil
+        or (
+            typeof(CONFIG.STARTING_HEALTH) == "number"
+            and CONFIG.STARTING_HEALTH >= 0
+            and CONFIG.STARTING_HEALTH <= CONFIG.MAX_HEALTH
+        ),
+    "STARTING_HEALTH must be nil or between 0 and MAX_HEALTH."
+)
+
+assert(
+    typeof(CONFIG.ENABLE_REGENERATION) == "boolean",
+    "ENABLE_REGENERATION must be true or false."
+)
+
+assert(
+    typeof(CONFIG.REGEN_AMOUNT) == "number"
+        and CONFIG.REGEN_AMOUNT >= 0,
+    "REGEN_AMOUNT must be a non-negative number."
+)
+
+assert(
+    typeof(CONFIG.REGEN_INTERVAL) == "number"
+        and CONFIG.REGEN_INTERVAL > 0,
+    "REGEN_INTERVAL must be greater than zero."
+)
+
+assert(
+    typeof(CONFIG.REGEN_DELAY) == "number"
+        and CONFIG.REGEN_DELAY >= 0,
+    "REGEN_DELAY must be non-negative."
+)
+
+--==================================================
+-- HEALTH REGENERATION
+--==================================================
+
+local function setupCharacter(character)
+    local humanoid = character:WaitForChild("Humanoid")
+
+    humanoid.MaxHealth = CONFIG.MAX_HEALTH
+
+    if CONFIG.STARTING_HEALTH == nil then
+        humanoid.Health = humanoid.MaxHealth
+    else
+        humanoid.Health = math.clamp(
+            CONFIG.STARTING_HEALTH,
+            0,
+            humanoid.MaxHealth
+        )
+    end
+
+    if not CONFIG.ENABLE_REGENERATION then
+        return
+    end
+
+    local lastHealth = humanoid.Health
+    local lastDamageTime = os.clock()
+
+    humanoid.HealthChanged:Connect(function(newHealth)
+        if newHealth < lastHealth then
+            lastDamageTime = os.clock()
+        end
+
+        lastHealth = newHealth
+    end)
+
+    task.spawn(function()
+        while character.Parent and humanoid.Health > 0 do
+            task.wait(CONFIG.REGEN_INTERVAL)
+
+            if not character.Parent or humanoid.Health <= 0 then
+                break
+            end
+
+            local elapsed = os.clock() - lastDamageTime
+
+            if elapsed >= CONFIG.REGEN_DELAY
+                and humanoid.Health < humanoid.MaxHealth then
+
+                humanoid.Health = math.min(
+                    humanoid.Health + CONFIG.REGEN_AMOUNT,
+                    humanoid.MaxHealth
+                )
+            end
+        end
+    end)
+end
+
+--==================================================
+-- PLAYER CONNECTIONS
+--==================================================
+
+local function setupPlayer(player)
+    player.CharacterAdded:Connect(setupCharacter)
+
+    if player.Character then
+        task.spawn(setupCharacter, player.Character)
+    end
+end
+
+Players.PlayerAdded:Connect(setupPlayer)
+
+for _, player in ipairs(Players:GetPlayers()) do
+    setupPlayer(player)
+end
+
+print("[Open Luau] Custom Health System initialized.")
